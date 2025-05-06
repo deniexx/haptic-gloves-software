@@ -1,0 +1,7 @@
+.vs/
+.vscode/
+.clangd
+*.obj
+*.pdb
+*.exe
+*.ini
