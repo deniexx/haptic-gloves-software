@@ -124,7 +124,7 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int n
   int imageWidth = 0;
   int imageHeight = 0;
   ID3D11ShaderResourceView *handTexture = nullptr;
-  bool ret = LoadTextureFromFile("C:\\GameDev\\HapticSoftware\\Assets\\hand.png", &handTexture, &imageWidth, &imageHeight);
+  bool ret = LoadTextureFromFile(".\\Assets\\hand.png", &handTexture, &imageWidth, &imageHeight);
   IM_ASSERT(ret);
 
   ImVec2 flipUv0(1.f, 0.f);
@@ -247,7 +247,7 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int n
         ImGui::SetCursorPosY(screenSize.y * 0.125f);
         for (int i = 0; i < 5; ++i) 
         {
-          std::string FullTitle = StrengthTitle + GetFingerText(leftHandFingers[i].Location);
+          std::string FullTitle = GetFingerText(leftHandFingers[i].Location) + " " + StrengthTitle;
           std::string id = "##lhand" + std::to_string(i);
           float local_x = ImGui::GetContentRegionAvail().x * 0.5f - (ImGui::CalcTextSize(FullTitle.c_str()).x * 0.5f);
           float local_x_widget = ImGui::GetContentRegionAvail().x * 0.5f - (dragWidgetWidth * 0.5f);
@@ -309,7 +309,7 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int n
         ImGui::SetCursorPosY(screenSize.y * 0.125f);
         for (int i = 0; i < 5; ++i) 
         {
-          std::string FullTitle = StrengthTitle + GetFingerText(rightHandFingers[i].Location);
+          std::string FullTitle = GetFingerText(rightHandFingers[i].Location) + " " + StrengthTitle;
           std::string id = "##rhand" + std::to_string(i);
           float local_x = ImGui::GetContentRegionAvail().x * 0.5f - (ImGui::CalcTextSize(FullTitle.c_str()).x * 0.5f);
           float local_x_widget = ImGui::GetContentRegionAvail().x * 0.5f - (dragWidgetWidth * 0.5f);
