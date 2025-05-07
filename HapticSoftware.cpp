@@ -13,7 +13,8 @@
 // @TODO: (Denis) Add a changing color depending on which finger is playing the feedback
 // @TODO: (Denis) Add sample plays for the gloves, like jingle bells
 
-enum class ETargetHandLocation : uint8_t {
+enum class ETargetHandLocation : uint8_t 
+{
   Thumb = 0,
   Index = 1,
   Middle = 2,
@@ -22,7 +23,8 @@ enum class ETargetHandLocation : uint8_t {
   None = 5
 };
 
-struct FingerConfig {
+struct FingerConfig 
+{
   ETargetHandLocation Location = ETargetHandLocation::None;
   int Strength = 0;
   float Duration = 0.f;
@@ -45,6 +47,7 @@ constexpr float g_immediateModeDuration = 0.2f;
 static uint8_t paddingBuffer[2] = {0, 0};
 
 constexpr float dragWidgetWidth = 200.f;
+constexpr float imagePadding = 25.f;
 
 bool CreateDeviceD3D(HWND hWnd);
 void CleanupDeviceD3D();
@@ -59,6 +62,8 @@ bool LoadTextureFromFile(const char *file_name,
                          int *out_height);
 std::string GetFingerText(ETargetHandLocation Location);
 
+ImVec4 LerpColorSimple(const ImVec4& srgbColor1, const ImVec4& srgbColor2, float t);
+
 // Main code
 int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) 
 {
@@ -72,12 +77,12 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int n
                     nullptr,
                     nullptr,
                     nullptr,
-                    L"ImGui Example",
+                    L"Haptic Software",
                     nullptr};
  
   ::RegisterClassExW(&wc);
   
-  HWND hwnd = ::CreateWindowW(wc.lpszClassName, L"Dear ImGui DirectX11 Example",
+  HWND hwnd = ::CreateWindowW(wc.lpszClassName, L"Haptic Software",
                               WS_OVERLAPPEDWINDOW, 100, 100, 1280, 800, nullptr,
                               nullptr, wc.hInstance, nullptr);
 
@@ -108,6 +113,9 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int n
   io.Fonts->Build();
   io.FontDefault = smallFont;
   ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+  ImVec4 initialColor = ImVec4(0.2f, 0.4f, 0.92f, 1.f);
+  ImVec4 targetColor = ImVec4(1.f, 0.f, 0.f, 1.f);
+  ImVec4 transparent = ImVec4(0.f, 0.f, 0.f, 0.f);
 
   serialib leftHand;
   serialib rightHand;
@@ -123,25 +131,56 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int n
   float imageDownScale = 3.75f;
   int imageWidth = 0;
   int imageHeight = 0;
-  ID3D11ShaderResourceView *handTexture = nullptr;
+
+  ID3D11ShaderResourceView* handTexture = nullptr;
   bool ret = LoadTextureFromFile(".\\Assets\\hand.png", &handTexture, &imageWidth, &imageHeight);
   IM_ASSERT(ret);
 
+  ID3D11ShaderResourceView* indexTexture = nullptr;
+  ret = LoadTextureFromFile(".\\Assets\\index.png", &indexTexture, &imageWidth, &imageHeight);
+  IM_ASSERT(ret);
+
+  ID3D11ShaderResourceView* middleTexture = nullptr;
+  ret = LoadTextureFromFile(".\\Assets\\middle.png", &middleTexture, &imageWidth, &imageHeight);
+  IM_ASSERT(ret);
+
+  ID3D11ShaderResourceView* ringTexture = nullptr;
+  ret = LoadTextureFromFile(".\\Assets\\ring.png", &ringTexture, &imageWidth, &imageHeight);
+  IM_ASSERT(ret);
+
+  ID3D11ShaderResourceView* pinkyTexture = nullptr;
+  ret = LoadTextureFromFile(".\\Assets\\pinky.png", &pinkyTexture, &imageWidth, &imageHeight);
+  IM_ASSERT(ret);
+
+  ID3D11ShaderResourceView* thumbTexture = nullptr;
+  ret = LoadTextureFromFile(".\\Assets\\thumb.png", &thumbTexture, &imageWidth, &imageHeight);
+  IM_ASSERT(ret);
+
+  ImVec2 normalUv0(0.f, 0.f);
+  ImVec2 normalUv1(1.f, 1.f);
   ImVec2 flipUv0(1.f, 0.f);
   ImVec2 flipUv1(0.f, 1.f);
   float drawImageWidth = imageWidth / imageDownScale;
   float drawImageHeight = imageHeight / imageDownScale;
 
-  FingerConfig leftHandFingers[5] = {{ETargetHandLocation::Thumb, 0, 0.f},
-                                     {ETargetHandLocation::Index, 0, 0.f},
-                                     {ETargetHandLocation::Middle, 0, 0.f},
-                                     {ETargetHandLocation::Ring, 0, 0.f},
-                                     {ETargetHandLocation::Pinky, 0, 0.f}};
-  FingerConfig rightHandFingers[5] = {{ETargetHandLocation::Thumb, 0, 0.f},
-                                      {ETargetHandLocation::Index, 0, 0.f},
-                                      {ETargetHandLocation::Middle, 0, 0.f},
-                                      {ETargetHandLocation::Ring, 0, 0.f},
-                                      {ETargetHandLocation::Pinky, 0, 0.f}};
+  FingerConfig leftHandFingers[5] = 
+  {
+    {ETargetHandLocation::Thumb, 0, 0.f},
+    {ETargetHandLocation::Index, 0, 0.f},
+    {ETargetHandLocation::Middle, 0, 0.f},
+    {ETargetHandLocation::Ring, 0, 0.f},
+    {ETargetHandLocation::Pinky, 0, 0.f}
+  };
+
+  FingerConfig rightHandFingers[5] = 
+  {
+      {ETargetHandLocation::Thumb, 0, 0.f},
+      {ETargetHandLocation::Index, 0, 0.f},
+      {ETargetHandLocation::Middle, 0, 0.f},
+      {ETargetHandLocation::Ring, 0, 0.f},
+      {ETargetHandLocation::Pinky, 0, 0.f}
+  };
+
   ImGuiStyle * style = &ImGui::GetStyle();
  
   style->WindowPadding = ImVec2(15, 15);
@@ -191,13 +230,9 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int n
   style->Colors[ImGuiCol_PlotHistogramHovered] = ImVec4(0.25f, 1.00f, 0.00f, 1.00f);
   style->Colors[ImGuiCol_TextSelectedBg] = ImVec4(0.25f, 1.00f, 0.00f, 0.43f);
 
-  // Main loop
   bool done = false;
   while (!done) 
   {
-    // Poll and handle messages (inputs, window resize, etc.)
-    // See the WndProc() function below for our to dispatch events to the Win32
-    // backend.
     MSG msg;
     while (::PeekMessage(&msg, nullptr, 0U, 0U, PM_REMOVE)) 
     {
@@ -235,13 +270,13 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int n
 
     {
       ImGui::SetNextWindowPos(ImVec2(0.f, 0.f));
-      ImGui::SetNextWindowSize(ImVec2(screenSize.x * 0.33f, screenSize.y * 0.66f));
+      ImGui::SetNextWindowSize(ImVec2(screenSize.x * 0.2f, screenSize.y * 0.6f));
       ImGui::Begin("Left Hand", NULL, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar);
       if (leftHand.isDeviceOpen() || 1) 
       {
         ImGui::SetCursorPosY(screenSize.y  * 0.05f);
         ImGui::PushFont(titleFont);
-        ImGui::SetCursorPosX(ImGui::GetContentRegionAvail().x * 0.5f - ImGui::CalcTextSize("Left Hand").x * 0.5f);
+        ImGui::SetCursorPosX(ImGui::GetContentRegionAvail().x * 0.5f - ImGui::CalcTextSize("Left Hand").x * 0.4f);
         ImGui::Text("Left Hand");
         ImGui::PopFont();
         ImGui::SetCursorPosY(screenSize.y * 0.125f);
@@ -249,8 +284,8 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int n
         {
           std::string FullTitle = GetFingerText(leftHandFingers[i].Location) + " " + StrengthTitle;
           std::string id = "##lhand" + std::to_string(i);
-          float local_x = ImGui::GetContentRegionAvail().x * 0.5f - (ImGui::CalcTextSize(FullTitle.c_str()).x * 0.5f);
-          float local_x_widget = ImGui::GetContentRegionAvail().x * 0.5f - (dragWidgetWidth * 0.5f);
+          float local_x = ImGui::GetContentRegionAvail().x * 0.5f - (ImGui::CalcTextSize(FullTitle.c_str()).x * 0.433f);
+          float local_x_widget = ImGui::GetContentRegionAvail().x * 0.5f - (dragWidgetWidth * 0.433f);
           ImGui::SetCursorPosX(local_x);
           ImGui::Text("%s", FullTitle.c_str());
           ImGui::SetCursorPosX(local_x_widget);
@@ -279,31 +314,70 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int n
     }
     
     {
-      ImGui::SetNextWindowPos(ImVec2(screenSize.x * 0.33f, 0.f));
-      ImGui::SetNextWindowSize(ImVec2(screenSize.x * 0.33f, screenSize.y * 0.66f));
+      // Left Hand
+      ImGui::SetNextWindowPos(ImVec2(screenSize.x * 0.2f, 0.f));
+      ImGui::SetNextWindowSize(ImVec2(screenSize.x * 0.6f, screenSize.y * 0.6f));
       ImGui::Begin("Hand Image", NULL, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar);
       ImVec2 panelSize = ImGui::GetContentRegionAvail();
-      ImVec2 centerPos = ImVec2(panelSize.x * 0.5f - drawImageWidth * 0.5f, panelSize.y * 0.5f - drawImageHeight * 0.5f + 25.f);
-      ImGui::SetCursorPos(centerPos);
-      ImGui::Image((ImTextureID)(intptr_t)handTexture, ImVec2(drawImageWidth, drawImageHeight), flipUv0, flipUv1);
+      ImVec2 imagePos = ImVec2(imagePadding, panelSize.y * 0.5f - drawImageHeight * 0.5f + 25.f);
+      ImGui::SetCursorPos(imagePos);
+      ImGui::Image((ImTextureID)(intptr_t)handTexture, ImVec2(drawImageWidth, drawImageHeight), normalUv0, normalUv1, initialColor, transparent);
+      ImGui::SetCursorPos(imagePos);
+      ImVec4 fingerColor = LerpColorSimple(initialColor, targetColor, leftHandFingers[1].Strength / 255.f);
+      ImGui::Image((ImTextureID)(intptr_t)indexTexture, ImVec2(drawImageWidth, drawImageHeight), normalUv0, normalUv1, fingerColor, transparent);
+      ImGui::SetCursorPos(imagePos);
+      fingerColor = LerpColorSimple(initialColor, targetColor, leftHandFingers[2].Strength / 255.f);
+      ImGui::Image((ImTextureID)(intptr_t)middleTexture, ImVec2(drawImageWidth, drawImageHeight), normalUv0, normalUv1, fingerColor, transparent);
+      ImGui::SetCursorPos(imagePos);
+      fingerColor = LerpColorSimple(initialColor, targetColor, leftHandFingers[3].Strength / 255.f);
+      ImGui::Image((ImTextureID)(intptr_t)ringTexture, ImVec2(drawImageWidth, drawImageHeight), normalUv0, normalUv1, fingerColor, transparent);
+      ImGui::SetCursorPos(imagePos);
+      fingerColor = LerpColorSimple(initialColor, targetColor, leftHandFingers[4].Strength / 255.f);
+      ImGui::Image((ImTextureID)(intptr_t)pinkyTexture, ImVec2(drawImageWidth, drawImageHeight), normalUv0, normalUv1, fingerColor, transparent);
+      ImGui::SetCursorPos(imagePos);
+      fingerColor = LerpColorSimple(initialColor, targetColor, leftHandFingers[0].Strength / 255.f);
+      ImGui::Image((ImTextureID)(intptr_t)thumbTexture, ImVec2(drawImageWidth, drawImageHeight), normalUv0, normalUv1, fingerColor, transparent);
+
+      // Right Hand
+      imagePos = ImVec2(panelSize.x - drawImageWidth * 0.825f - imagePadding, panelSize.y * 0.5f - drawImageHeight * 0.5f + 25.f);
+      ImGui::SetCursorPos(imagePos);
+      ImGui::Image((ImTextureID)(intptr_t)handTexture, ImVec2(drawImageWidth, drawImageHeight), flipUv0, flipUv1, initialColor, transparent);
+      ImGui::SetCursorPos(imagePos);
+      fingerColor = LerpColorSimple(initialColor, targetColor, rightHandFingers[1].Strength / 255.f);
+      ImGui::Image((ImTextureID)(intptr_t)indexTexture, ImVec2(drawImageWidth, drawImageHeight), flipUv0, flipUv1, fingerColor, transparent);
+      ImGui::SetCursorPos(imagePos);
+      fingerColor = LerpColorSimple(initialColor, targetColor, rightHandFingers[2].Strength / 255.f);
+      ImGui::Image((ImTextureID)(intptr_t)middleTexture, ImVec2(drawImageWidth, drawImageHeight), flipUv0, flipUv1, fingerColor, transparent);
+      ImGui::SetCursorPos(imagePos);
+      fingerColor = LerpColorSimple(initialColor, targetColor, rightHandFingers[3].Strength / 255.f);
+      ImGui::Image((ImTextureID)(intptr_t)ringTexture, ImVec2(drawImageWidth, drawImageHeight), flipUv0, flipUv1, fingerColor, transparent);
+      ImGui::SetCursorPos(imagePos);
+      fingerColor = LerpColorSimple(initialColor, targetColor, rightHandFingers[4].Strength / 255.f);
+      ImGui::Image((ImTextureID)(intptr_t)pinkyTexture, ImVec2(drawImageWidth, drawImageHeight), flipUv0, flipUv1, fingerColor, transparent);
+      ImGui::SetCursorPos(imagePos);
+      fingerColor = LerpColorSimple(initialColor, targetColor, rightHandFingers[0].Strength / 255.f);
+      ImGui::Image((ImTextureID)(intptr_t)thumbTexture, ImVec2(drawImageWidth, drawImageHeight), flipUv0, flipUv1, fingerColor, transparent);
+
+      // @NOTE: Could add here the playing input
+
       ImGui::End();
     }
 
     {
-      ImGui::SetNextWindowPos(ImVec2(0.f, screenSize.y * 0.66f));
-      ImGui::SetNextWindowSize(ImVec2(screenSize.x, screenSize.y * 0.33f));
+      ImGui::SetNextWindowPos(ImVec2(0.f, screenSize.y * 0.6f));
+      ImGui::SetNextWindowSize(ImVec2(screenSize.x, screenSize.y * 0.4f));
       ImGui::ShowDebugLogWindow();
     }
 
     {
-      ImGui::SetNextWindowPos(ImVec2(screenSize.x * 0.66f, 0.f));
-      ImGui::SetNextWindowSize(ImVec2(screenSize.x * 0.34f, screenSize.y * 0.66f));
+      ImGui::SetNextWindowPos(ImVec2(screenSize.x * 0.8f, 0.f));
+      ImGui::SetNextWindowSize(ImVec2(screenSize.x * 0.2f, screenSize.y * 0.6f));
       ImGui::Begin("Right Hand", NULL, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoTitleBar);
       if (rightHand.isDeviceOpen() || 1) 
       {
         ImGui::SetCursorPosY(screenSize.y  * 0.05f);
         ImGui::PushFont(titleFont);
-        ImGui::SetCursorPosX(ImGui::GetContentRegionAvail().x * 0.5f - ImGui::CalcTextSize("Right Hand").x * 0.5f);
+        ImGui::SetCursorPosX(ImGui::GetContentRegionAvail().x * 0.5f - ImGui::CalcTextSize("Right Hand").x * 0.4f);
         ImGui::Text("Right Hand");
         ImGui::PopFont();
         ImGui::SetCursorPosY(screenSize.y * 0.125f);
@@ -311,8 +385,8 @@ int WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int n
         {
           std::string FullTitle = GetFingerText(rightHandFingers[i].Location) + " " + StrengthTitle;
           std::string id = "##rhand" + std::to_string(i);
-          float local_x = ImGui::GetContentRegionAvail().x * 0.5f - (ImGui::CalcTextSize(FullTitle.c_str()).x * 0.5f);
-          float local_x_widget = ImGui::GetContentRegionAvail().x * 0.5f - (dragWidgetWidth * 0.5f);
+          float local_x = ImGui::GetContentRegionAvail().x * 0.5f - (ImGui::CalcTextSize(FullTitle.c_str()).x * 0.433f);
+          float local_x_widget = ImGui::GetContentRegionAvail().x * 0.5f - (dragWidgetWidth * 0.433f);
           ImGui::SetCursorPosX(local_x);
           ImGui::Text("%s", FullTitle.c_str());
           ImGui::SetCursorPosX(local_x_widget);
@@ -648,3 +722,61 @@ std::string GetFingerText(ETargetHandLocation Location)
   return "";
 }
 
+ImVec4 LerpColorSimple(const ImVec4& srgbColor1, const ImVec4& srgbColor2, float t) 
+{
+    ImVec4 result;
+    float r1 = srgbColor1.x, g1 = srgbColor1.y, b1 = srgbColor1.z, a1 = srgbColor1.w;
+    float r2 = srgbColor2.x, g2 = srgbColor2.y, b2 = srgbColor2.z, a2 = srgbColor2.w;
+
+    // Convert sRGB colors to HSV
+    float h1, s1, v1;
+    ImGui::ColorConvertRGBtoHSV(r1, g1, b1, h1, s1, v1);
+    float h2, s2, v2;
+    ImGui::ColorConvertRGBtoHSV(r2, g2, b2, h2, s2, v2);
+
+    // Interpolate Saturation and Value linearly
+    float s_interp = s1 + (s2 - s1) * t;
+    float v_interp = v1 + (v2 - v1) * t;
+
+    // Interpolate Hue (H) with shortest path logic
+    // Hue is in the range [0.0, 1.0] from ImGui's conversion
+    float h_interp;
+    float diff_h = h2 - h1;
+
+    if (s1 == 0.0f) { // Start color is grayscale, its hue is undefined or 0
+        h_interp = h2; // Use hue of the target color, or let it interpolate from 0 if h2 is also 0
+        if (s2 == 0.0f) h_interp = 0.0f; // Both are grayscale, hue is 0
+    } else if (s2 == 0.0f) { // End color is grayscale
+        h_interp = h1; // Use hue of the start color
+    } else {
+        // Both colors have saturation, so interpolate hue
+        if (diff_h > 0.5f) {      // e.g., h1=0.1, h2=0.9 -> diff=0.8. Shortest path is -0.2
+            h_interp = h1 + (diff_h - 1.0f) * t;
+        } else if (diff_h < -0.5f) { // e.g., h1=0.9, h2=0.1 -> diff=-0.8. Shortest path is +0.2
+            h_interp = h1 + (diff_h + 1.0f) * t;
+        } else {
+            h_interp = h1 + diff_h * t;
+        }
+    }
+
+    // Normalize Hue to [0.0, 1.0) range
+    h_interp = fmodf(h_interp, 1.0f);
+    if (h_interp < 0.0f) {
+        h_interp += 1.0f;
+    }
+    
+    // If interpolated saturation is effectively zero, hue is irrelevant for the final RGB color
+    if (s_interp < 0.00001f) {
+        h_interp = 0.0f; // Set to a defined value, though it won't affect the color if S=0
+    }
+
+
+    // Interpolate Alpha component linearly
+    float a_interp = a1 + (a2 - a1) * t;
+
+    // Convert interpolated HSV back to sRGB
+    float r_interp, g_interp, b_interp;
+    ImGui::ColorConvertHSVtoRGB(h_interp, s_interp, v_interp, r_interp, g_interp, b_interp);
+
+    return ImVec4(r_interp, g_interp, b_interp, a_interp);
+}
